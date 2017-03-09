@@ -4,7 +4,8 @@ Flask-Cavage
 Flask-Cavage adds Cavage signature verification and authentication to the
 Flask framework. Cavage is a protocol extension is intended to provide a 
 simple and standard way for clients to sign HTTP messages. 
-Quote from the [cavage draft](https://tools.ietf.org/html/draft-cavage-http-signatures-03)
+
+Attribution quote from the [cavage draft](https://tools.ietf.org/html/draft-cavage-http-signatures-03)
 
 Why Sign?
 -----------
