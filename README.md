@@ -32,27 +32,30 @@ After installing the extension, import it into your flask application,
 configure the extension by defining the headers to sign, define a method
 that will return a secret key given an access key and you are good to go::
 
-    from flask import Flask
-    from flask_cavage import CavageSignature
+```python
 
-    keys = {
-        'access-key-1': '123456789',
-        'access-key-2': '4381326329'}
+from flask import Flask
+from flask_cavage import CavageSignature
 
-    def init_signature_verification(app):
-        cavage_signature = CavageSignature(app)
+keys = {
+    'access-key-1': '123456789',
+    'access-key-2': '4381326329'}
 
-        @cavage_signature.secret_loader
-        def load_secret(access_key):
-            app.logger.debug("Loading secret for %s" % access_key)
-            # You can store your keys in files, databases, hash tables...
-            if access_key in keys:
-                return keys.get(access_key)
+def init_signature_verification(app):
+    cavage_signature = CavageSignature(app)
 
-    app = Flask(__name__)
-    # Verify the URI, host and date headers. Don't verify the body
-    app.config['CAVAGE_VERIFIED_HEADERS'] = ['(request-target)', 'host', 'date'])
-    init_signature_verification(app)
+    @cavage_signature.secret_loader
+    def load_secret(access_key):
+        app.logger.debug("Loading secret for %s" % access_key)
+        # You can store your keys in files, databases, hash tables...
+        if access_key in keys:
+            return keys.get(access_key)
+
+app = Flask(__name__)
+# Verify the URI, host and date headers. Don't verify the body
+app.config['CAVAGE_VERIFIED_HEADERS'] = ['(request-target)', 'host', 'date'])
+init_signature_verification(app)
+```
 
 Configuration
 -------------
