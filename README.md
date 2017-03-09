@@ -61,12 +61,10 @@ The only tunable available is the CAVAGE_VERIFIED_HEADERS parameter. This instru
 the extension on which headers (and optionally include the body) to include in the verification
 process
 
-| ------------------------------ |:----------------------------------------------------------------------:|
-`request-target`                     Use the URI in the verification process
-
-`date`                               Use the the provided date to verify the signature
-
-`*any valid http header*`            The request has this http header, use it in signature verification
-
-`digest`                             Include the request body in digest verification
+| Parameter                      |  Action                                                                |
+| ------------------------------ |----------------------------------------------------------------------:|
+`request-target`                 |    Use the URI in the verification process
+`date`                           |     Use the the provided date to verify the signature
+`*any valid http header*`        |    The request has this http header, use it in signature verification
+`digest`                         |   Include the request body in digest verification
 
