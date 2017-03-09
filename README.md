@@ -1,21 +1,10 @@
-.. FlaskCavage documentation master file, created by
-   sphinx-quickstart on Wed Mar  8 22:26:52 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Flask-Cavage
 =======================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-
 Flask-Cavage adds Cavage signature verification and authentication to the
 Flask framework. Cavage is a protocol extension is intended to provide a 
-simple and standard way for clients to sign HTTP messages (quote from the `cavage draft`_)
-
-.. _cavage draft: https://tools.ietf.org/html/draft-cavage-http-signatures-03
+simple and standard way for clients to sign HTTP messages. 
+Quote from the [cavage draft](https://tools.ietf.org/html/draft-cavage-http-signatures-03)
 
 Why Sign?
 -----------
@@ -77,7 +66,7 @@ process
 
 `date`                               Use the the provided date to verify the signature
 
-*any valid http header*              The request has this http header, use it in signature verification
+`*any valid http header*`             The request has this http header, use it in signature verification
 
 `digest`                             Include the request body in digest verification
 =================================== ====================================================
