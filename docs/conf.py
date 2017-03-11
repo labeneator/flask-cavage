@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# FlaskCavage documentation build configuration file, created by
+# Flask-Cavage documentation build configuration file, created by
 # sphinx-quickstart on Wed Mar  8 22:26:52 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -45,7 +45,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'FlaskCavage'
+project = u'Flask-Cavage'
 copyright = u'2017, lmwangi'
 author = u'lmwangi'
 
@@ -99,7 +99,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'FlaskCavagedoc'
+htmlhelp_basename = 'Flask-Cavagedoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -126,7 +126,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'FlaskCavage.tex', u'FlaskCavage Documentation',
+    (master_doc, 'Flask-Cavage.tex', u'Flask-Cavage Documentation',
      u'lmwangi', 'manual'),
 ]
 
@@ -136,7 +136,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'flaskcavage', u'FlaskCavage Documentation',
+    (master_doc, 'flask-cavage', u'Flask-Cavage Documentation',
      [author], 1)
 ]
 
@@ -147,8 +147,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'FlaskCavage', u'FlaskCavage Documentation',
-     author, 'FlaskCavage', 'One line description of project.',
+    (master_doc, 'Flask-Cavage', u'Flask-Cavage Documentation',
+     author, 'Flask-Cavage', 'One line description of project.',
      'Miscellaneous'),
 ]
 
