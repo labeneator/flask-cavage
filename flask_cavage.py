@@ -32,7 +32,6 @@ class CavageSignature(object):
     def init_signature_handlers(self, app):
         @app.before_request
         def verify_request():
-            print request.headers
             if self.secret_loader_callback is None:
                 raise Exception(
                     "No secret loader installed."
@@ -43,7 +42,7 @@ class CavageSignature(object):
                 current_app.logger.warn(
                     "Missing authorization header")
                 return
-            if "digest" not in request.headers:
+            if "digest" in self.app.config.get('CAVAGE_VERIFIED_HEADERS') and "digest" not in request.headers:
                 current_app.logger.warn(
                     "Missing digest header")
                 return
@@ -68,7 +67,13 @@ class CavageSignature(object):
                     "keyId doesn't have a secret: '%s'" % key_id)
                 return
 
-            url_path = request.full_path if request.method == 'GET' else request.url_rule
+            url_path = request.full_path.rstrip("?") if request.method == 'GET' else request.url_rule
+            #print request.headers
+            #print request.method
+            #print secret_key
+            #print app.config.get('CAVAGE_VERIFIED_HEADERS')
+            #print url_path
+            # from IPython import embed; embed()
             verifier = HeaderVerifier(
                 request.headers, secret_key,
                 required_headers=app.config.get('CAVAGE_VERIFIED_HEADERS'),
@@ -78,13 +83,14 @@ class CavageSignature(object):
                 current_app.logger.warn("Signature verification failed")
                 return
             current_app.logger.debug("Signature verification success")
-            digest_type, digest_base64 = request.headers.get("digest").split("=", 1)
-            digest_function = self.digest_functions.get(digest_type)
-            computed_digest = digest_function(request.data).digest()
-            submitted_digest = base64.decodestring(digest_base64)
-            if computed_digest != submitted_digest:
-                current_app.logger.warn("Message body digest verification failed")
-                return
+            if 'digest' in app.config.get('CAVAGE_VERIFIED_HEADERS'):
+                digest_type, digest_base64 = request.headers.get("digest").split("=", 1)
+                digest_function = self.digest_functions.get(digest_type)
+                computed_digest = digest_function(request.data).digest()
+                submitted_digest = base64.decodestring(bytes(digest_base64.encode('utf-8')))
+                if computed_digest != submitted_digest:
+                    current_app.logger.warn("Message body digest verification failed")
+                    return
             g.cavage_verified = True
 
     def secret_loader(self, callback):
