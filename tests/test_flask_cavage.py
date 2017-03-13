@@ -17,10 +17,10 @@ from httpsig_cffi.requests_auth import HTTPSignatureAuth
 from flask_cavage import CavageSignature, require_apikey_authentication
 
 
-class WalletRestTestCase(unittest.TestCase):
+class CavageTestCase(unittest.TestCase):
 
     def setUp(self):
-        super(WalletRestTestCase, self).setUp()
+        super(CavageTestCase, self).setUp()
         self.debug = False
         self.app = Flask(__name__)
         self.init_app(self.app)

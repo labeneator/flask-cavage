@@ -36,7 +36,7 @@ that will return a secret key given an access key and you are good to go::
 ```python
 
 from flask import Flask
-from flask_cavage import CavageSignature
+from flask_cavage import CavageSignature, require_apikey_authentication
 
 keys = {
     'access-key-1': '123456789',
@@ -56,6 +56,19 @@ app = Flask(__name__)
 # Verify the URI, host and date headers. Don't verify the body
 app.config['CAVAGE_VERIFIED_HEADERS'] = ['(request-target)', 'host', 'date'])
 init_signature_verification(app)
+
+app.route('/hello_world')
+def hello_world():
+    # Cavage signatures not verified
+    return 'Hello, World!'
+
+app.route('/hello_world_private', methods=['GET', 'POST'])
+@require_apikey_authentication
+def hello_world_private():
+    # Valid cavage signatures required
+    return '<Whisper> Hello, world!'
+
+
 ```
 
 Configuration
