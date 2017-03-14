@@ -23,7 +23,9 @@ Installation
 ------------
 Installing the extension is simple with pip:
 
-    $ pip install Flask-Cavage
+```sh
+    pip install Flask-Cavage
+```
 
 
 Quickstart
@@ -34,13 +36,13 @@ configure the extension by defining the headers to sign, define a method
 that will return a secret key given an access key and you are good to go::
 
 ```python
-
+import logging
 from flask import Flask
 from flask_cavage import CavageSignature, require_apikey_authentication
 
 keys = {
-    'access-key-1': '123456789',
-    'access-key-2': '4381326329'}
+    'access_key_1': '123456789',
+    'access_key_2': '4381326329'}
 
 def init_signature_verification(app):
     cavage_signature = CavageSignature(app)
@@ -53,23 +55,73 @@ def init_signature_verification(app):
             return keys.get(access_key)
 
 app = Flask(__name__)
-# Verify the URI, host and date headers. Don't verify the body
-app.config['CAVAGE_VERIFIED_HEADERS'] = ['(request-target)', 'host', 'date'])
-init_signature_verification(app)
 
-app.route('/hello_world')
+@app.route('/hello_world')
 def hello_world():
     # Cavage signatures not verified
     return 'Hello, World!'
 
-app.route('/hello_world_private', methods=['GET', 'POST'])
+@app.route('/hello_world_private', methods=['GET', 'POST'])
 @require_apikey_authentication
 def hello_world_private():
-    # Valid cavage signatures required
+    # Valid cavage signatures ed
     return '<Whisper> Hello, world!'
 
 
+
+if __name__ == "__main__":
+    # verify the uri, host and date headers. don't verify the body
+    app.config['CAVAGE_VERIFIED_HEADERS'] = ['(request-target)', 'host', 'date']
+    init_signature_verification(app)
+    app.logger.addHandler(logging.StreamHandler())
+    app.logger.setLevel(logging.DEBUG)
+    app.run()
 ```
+
+
+Example client using requests.
+
+
+```python
+import json
+import hashlib
+import base64
+import urllib2
+import requests
+from httpsig_cffi.requests_auth import HTTPSignatureAuth
+import datetime
+from wsgiref.handlers import format_date_time
+from time import mktime
+
+
+def rfc1123_datetime_format(dt_instant):
+    stamp = mktime(dt_instant.timetuple())
+    return format_date_time(stamp)
+
+
+def main():
+    key_id = "access_key_1"
+    secret = "123456789"
+    url = 'http://localhost:5000/hello_world_private'
+    data = dict()
+    url_components = urllib2.urlparse.urlparse(url)
+    checksum = "SHA-256=" + base64.encodestring(
+        hashlib.sha256(json.dumps(data)).digest()
+    ).strip()
+
+    headers = dict(
+        date=rfc1123_datetime_format(datetime.datetime.now()),
+        host=url_components.netloc, digest=checksum)
+    signed_headers = ['(request-target)', 'host', 'date']
+    auth = HTTPSignatureAuth(key_id=key_id, secret=secret, headers=signed_headers)
+    z = requests.get(url, auth=auth, headers=headers, json=data)
+    print z.request.headers
+    print z.content
+
+
+if __name__ == "__main__":
+    main()```
+
 
 Configuration
 -------------
