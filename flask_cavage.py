@@ -17,11 +17,11 @@ class CavageSignature(object):
     }
 
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
+        if app:
             self.init_app(app)
 
     def init_app(self, app):
+        self.app = app
         self.secret_loader_callback = None
         app.config.setdefault(
             'CAVAGE_VERIFIED_HEADERS',
@@ -68,12 +68,6 @@ class CavageSignature(object):
                 return
 
             url_path = request.full_path.rstrip("?") if request.method == 'GET' else request.url_rule
-            #print request.headers
-            #print request.method
-            #print secret_key
-            #print app.config.get('CAVAGE_VERIFIED_HEADERS')
-            #print url_path
-            # from IPython import embed; embed()
             verifier = HeaderVerifier(
                 request.headers, secret_key,
                 required_headers=app.config.get('CAVAGE_VERIFIED_HEADERS'),
