@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(
     name='Flask-Cavage',
-    version='0.1',
+    version='0.2',
     url='https://github.com/labeneator/flask_cavage',
     license='GPLv3',
     author='Laban Mwangi',
