@@ -19,7 +19,7 @@ def do_simple_get(auth):
     url = 'http://localhost:5000/hello_world_private'
     response = requests.get(url, auth=auth, headers=mk_headers(), json=data)
     response.raise_for_status()
-    print "simple get: ", response.content
+    print("simple get: %s" % response.content)
 
 
 
@@ -33,7 +33,7 @@ def main():
     try:
         do_simple_get(bad_auth)
     except requests.exceptions.HTTPError as exc:
-        print "Expected failure: %s" % exc
+        print("Expected failure: %s" % exc)
 
 if __name__ == "__main__":
     main()

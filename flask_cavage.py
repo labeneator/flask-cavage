@@ -58,7 +58,6 @@ class CavageSignature(object):
             current_app.logger.warn(
                 "Missing authorization header")
             return False
-        print required_headers
         required_headers_set = set(required_headers)
         received_headers = set(
             [header_name.lower() for header_name in request.headers.keys()] +
