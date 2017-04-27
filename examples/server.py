@@ -35,7 +35,6 @@ def hello_world_private():
 
 if __name__ == "__main__":
     # verify the uri, host and date headers. don't verify the body
-    app.config['CAVAGE_VERIFIED_HEADERS'] = ['(request-target)', 'host', 'date']
     init_signature_verification(app)
     app.logger.addHandler(logging.StreamHandler())
     app.logger.setLevel(logging.DEBUG)

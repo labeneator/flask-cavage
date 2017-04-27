@@ -12,13 +12,14 @@ Please see
 This library has been tested using requests signed by
 
  - https://github.com/tomitribe/http-signatures-java
+ - https://pypi.python.org/pypi/httpsig_cffi/15.0.0
 """
 from setuptools import setup
 
 
 setup(
     name='Flask-Cavage',
-    version='0.2',
+    version='0.3',
     url='https://github.com/labeneator/flask_cavage',
     license='GPLv3',
     author='Laban Mwangi',
