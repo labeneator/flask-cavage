@@ -1,23 +1,34 @@
+import six
 import json
 import base64
 import hashlib
-try:
-    # Python 3
-    from urllib.parse import urlparse
-except ImportError:
-    # Python 2
-    from urlparse import urlparse
 import unittest
-import datetime
 import logging
-from time import mktime
-from wsgiref.handlers import format_date_time
+import email.utils
+import httpsig_cffi.sign
 from flask import Flask
-from httpsig_cffi.requests_auth import HTTPSignatureAuth
 from flask_cavage import CavageSignature, require_apikey_authentication
 
 
 class CavageTestCase(unittest.TestCase):
+    generic_headers = [
+        "date",
+        "(request-target)",
+        "host"
+    ]
+    body_headers = [
+        "content-length",
+        "content-type",
+        "x-content-sha256",
+    ]
+    required_headers = {
+        "get": generic_headers,
+        "head": generic_headers,
+        "delete": generic_headers,
+        "put": generic_headers + body_headers,
+        "post": generic_headers + body_headers
+    }
+
 
     def setUp(self):
         super(CavageTestCase, self).setUp()
@@ -42,6 +53,7 @@ class CavageTestCase(unittest.TestCase):
             if access_key in self.secret_keys:
                 return self.secret_keys.get(access_key)
 
+
         @self.app.route('/hello_world')
         def hello_world():
             return 'Hello, World!'
@@ -51,109 +63,115 @@ class CavageTestCase(unittest.TestCase):
         def hello_world_private():
             return '<Whisper> Hello, world!'
 
-        @self.app.route('/hello_someone', methods=['GET', 'POST'])
+        @self.app.route('/hello_someone', methods=['GET', 'POST', 'PUT', 'DELETE', 'HEAD'])
         @require_apikey_authentication
         def hello_someone():
             # If we get here, the payload has also been validated
             return 'Hello, Someone!'
 
-    def rfc1123_datetime_format(self, dt_instant):
-        stamp = mktime(dt_instant.timetuple())
-        return format_date_time(stamp)
+    def mk_signer(self, key_id, secret, http_method, algorithm="hmac-sha256"):
+        headers = self.required_headers.get(http_method.lower())
+        signer = httpsig_cffi.sign.HeaderSigner(
+            key_id=key_id, secret=secret,
+            algorithm=algorithm, headers=headers)
+        return signer
 
-    def compute_checksum(self, data_dict):
+
+    def compute_checksum(self, body=""):
         # This coerces everything into json.
-        # TODO: Figure out how to digest form requests
-        return "SHA-256=" + base64.encodestring(
-            hashlib.sha256(bytes(json.dumps(data_dict).encode('utf-8'))).digest()
-        ).decode('utf-8').strip()
+        return {"x-content-sha256": base64.b64encode(
+            hashlib.sha256(body).digest()
+        ).decode('utf-8')}
 
-    def mk_headers_and_signer(self, signed_headers, key_id, secret, data):
-        url_components = urlparse(self.test_host_url)
-        headers = dict(
-            Date=self.rfc1123_datetime_format(datetime.datetime.now()),
-            Host=url_components.netloc, Digest=self.compute_checksum(data)
-        )
-        signer = HTTPSignatureAuth(key_id=key_id, secret=secret, headers=signed_headers)
-        return headers, signer
+    def mk_headers(self, method, data_dict):
+        headers = {
+            'date': email.utils.formatdate(usegmt=True),
+            "content-type": "application/json"
+        }
+        if 'host' in self.required_headers.get(method.lower()):
+            headers['host'] = six.moves.urllib.parse.urlparse(self.test_host_url).netloc
+
+        if method.lower() in ["put", "post"]:
+            body = bytes(json.dumps(data_dict).encode('utf-8'))
+            headers.update(self.compute_checksum(body))
+            headers["content-length"] = len(body)
+
+        return headers
+
+    def mk_signed_headers(self, access_key, secret, method, path, data):
+        signer = self.mk_signer(access_key, secret, method)
+        headers = self.mk_headers(method, data)
+        signed_headers = signer.sign(
+            headers, host=headers.get('host'),
+            method=method, path=path)
+        return signed_headers
+
 
     def test_hello_world_should_not_be_accesible(self):
         rv = self.test_client.get('/hello_world')
         self.assertEquals(rv.status_code, 200)
 
-    def test_protected_resource_should_be_accesible_without_a_signature(self):
-        rv = self.test_client.get('/hello_world_private')
-        self.assertEquals(rv.status_code, 403)
+    def test_protected_resource_should_not_be_accesible_without_a_signature(self):
+        rv = self.test_client.get('/hello_world_private', data=json.dumps({}), content_type='application/json')
+        self.assertEquals(rv.status_code, 401)
         self.assertTrue(b'Access denied' in rv.data)
 
     def test_protected_resource_should_be_accesible_with_a_signature_via_get(self):
         path = "/hello_world_private"
-        headers_to_sign = ['(request-target)', 'host', 'date']
-        self.app.config['CAVAGE_VERIFIED_HEADERS'] = headers_to_sign
         access_key = "access_key_1"
         secret = self.secret_keys.get(access_key)
         data = dict()
-        headers, signer = self.mk_headers_and_signer(headers_to_sign, access_key, secret, data)
-        auth_headers=signer.header_signer.sign(headers, method="GET", path=path)
-        rv = self.test_client.get(path, headers=auth_headers)
-        self.assertEquals(rv.status_code, 200)
-
-    def test_protected_resource_should_be_accesible_with_a_signature_via_post(self):
-        path = "/hello_world_private"
-        headers_to_sign = ['(request-target)', 'host', 'date']
-        self.app.config['CAVAGE_VERIFIED_HEADERS'] = headers_to_sign
-        access_key = "access_key_1"
-        secret = self.secret_keys.get(access_key)
-        data = dict()
-        headers, signer = self.mk_headers_and_signer(headers_to_sign, access_key, secret, data)
-        auth_headers=signer.header_signer.sign(headers, method="POST", path=path)
-        rv = self.test_client.post(path, headers=auth_headers)
-        self.assertEquals(rv.status_code, 200)
-
-    def test_protected_resource_should_be_accesible_with_a_signature_via_a_get_with_query_string(self):
-        path = "/hello_world_private?username=Mike"
-        headers_to_sign = ['(request-target)', 'host', 'date']
-        self.app.config['CAVAGE_VERIFIED_HEADERS'] = headers_to_sign
-        access_key = "access_key_1"
-        secret = self.secret_keys.get(access_key)
-        data = dict()
-        headers, signer = self.mk_headers_and_signer(headers_to_sign, access_key, secret, data)
-        auth_headers=signer.header_signer.sign(headers, method="GET", path=path)
-        rv = self.test_client.get(path, headers=auth_headers, data=data)
-        self.assertEquals(rv.status_code, 200)
-
-    def test_protected_resource_should_be_accesible_with_a_signature_via_a_post_with_payload(self):
-        path = "/hello_someone"
-        headers_to_sign = ['(request-target)', 'host', 'date']
-        self.app.config['CAVAGE_VERIFIED_HEADERS'] = headers_to_sign
-        access_key = "access_key_1"
-        secret = self.secret_keys.get(access_key)
-        data = dict(username='Mikey')
-        headers, signer = self.mk_headers_and_signer(headers_to_sign, access_key, secret, data)
-        auth_headers=signer.header_signer.sign(headers, method="POST", path=path)
-        rv = self.test_client.post(path, headers=auth_headers, data=data)
+        method = "get"
+        signed_headers = self.mk_signed_headers(access_key, secret, method, path, data)
+        rv = self.test_client.get(path, headers=signed_headers, data=json.dumps(data))
         self.assertEquals(rv.status_code, 200)
 
     def test_protected_resource_should_be_accesible_with_a_signature_via_a_post_with_json_payload(self):
         path = "/hello_someone"
-        headers_to_sign = ['(request-target)', 'host', 'date']
-        self.app.config['CAVAGE_VERIFIED_HEADERS'] = headers_to_sign
         access_key = "access_key_1"
         secret = self.secret_keys.get(access_key)
         data = dict(username='Mikey')
-        headers, signer = self.mk_headers_and_signer(headers_to_sign, access_key, secret, data)
-        auth_headers=signer.header_signer.sign(headers, method="POST", path=path)
-        rv = self.test_client.post(path, headers=auth_headers, data=json.dumps(data))
+        method = "post"
+        signed_headers = self.mk_signed_headers(access_key, secret, method, path, data)
+        rv = self.test_client.post(path, headers=signed_headers, data=json.dumps(data))
         self.assertEquals(rv.status_code, 200)
 
-    def test_protected_resource_should_be_accesible_with_a_signature_via_a_json_digested_post_payload(self):
+    def test_protected_resource_should_be_accesible_with_a_signature_via_a_get_with_query(self):
+        path = "/hello_world_private?username=Mikey"
+        access_key = "access_key_1"
+        secret = self.secret_keys.get(access_key)
+        data = dict()
+        method = "get"
+        signed_headers = self.mk_signed_headers(access_key, secret, method, path, data)
+        rv = self.test_client.get(path, headers=signed_headers, data=json.dumps(data))
+        self.assertEquals(rv.status_code, 200)
+
+    def test_protected_resource_should_be_accesible_with_a_signature_via_a_put_with_json_payload(self):
         path = "/hello_someone"
-        headers_to_sign = ['(request-target)', 'host', 'date', 'digest']
-        self.app.config['CAVAGE_VERIFIED_HEADERS'] = headers_to_sign
         access_key = "access_key_1"
         secret = self.secret_keys.get(access_key)
         data = dict(username='Mikey')
-        headers, signer = self.mk_headers_and_signer(headers_to_sign, access_key, secret, data)
-        auth_headers=signer.header_signer.sign(headers, method="POST", path=path)
-        rv = self.test_client.post(path, headers=auth_headers, data=json.dumps(data))
+        method = "put"
+        signed_headers = self.mk_signed_headers(access_key, secret, method, path, data)
+        rv = self.test_client.put(path, headers=signed_headers, data=json.dumps(data))
+        self.assertEquals(rv.status_code, 200)
+
+    def test_protected_resource_should_be_accesible_with_a_signature_via_a_delete(self):
+        path = "/hello_someone?username=Mikey"
+        access_key = "access_key_1"
+        secret = self.secret_keys.get(access_key)
+        data = dict()
+        method = "delete"
+        signed_headers = self.mk_signed_headers(access_key, secret, method, path, data)
+        rv = self.test_client.delete(path, headers=signed_headers, data=json.dumps(data))
+        self.assertEquals(rv.status_code, 200)
+
+    def test_protected_resource_should_be_accesible_with_a_signature_via_a_head(self):
+        path = "/hello_someone?username=Mikey"
+        access_key = "access_key_1"
+        secret = self.secret_keys.get(access_key)
+        data = dict()
+        method = "head"
+        signed_headers = self.mk_signed_headers(access_key, secret, method, path, data)
+        rv = self.test_client.head(path, headers=signed_headers, data=json.dumps(data))
         self.assertEquals(rv.status_code, 200)

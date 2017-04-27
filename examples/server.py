@@ -16,19 +16,21 @@ def init_signature_verification(app):
         if access_key in keys:
             return keys.get(access_key)
 
+
 app = Flask(__name__)
+
 
 @app.route('/hello_world')
 def hello_world():
     # Cavage signatures not verified
     return 'Hello, World!'
 
-@app.route('/hello_world_private', methods=['GET', 'POST'])
+
+@app.route('/hello_world_private', methods=['GET'])
 @require_apikey_authentication
 def hello_world_private():
     # Valid cavage signatures ed
     return '<Whisper> Hello, world!'
-
 
 
 if __name__ == "__main__":
