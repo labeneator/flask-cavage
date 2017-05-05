@@ -7,28 +7,10 @@ import logging
 import email.utils
 import httpsig_cffi.sign
 from flask import Flask
-from flask_cavage import CavageSignature, require_apikey_authentication
+from flask_cavage import CavageSignature, require_apikey_authentication, HeadersMap
 
 
 class CavageTestCase(unittest.TestCase):
-    generic_headers = [
-        "date",
-        "(request-target)",
-        "host"
-    ]
-    body_headers = [
-        "content-length",
-        "content-type",
-        "x-content-sha256",
-    ]
-    required_headers = {
-        "get": generic_headers,
-        "head": generic_headers,
-        "delete": generic_headers,
-        "put": generic_headers + body_headers,
-        "post": generic_headers + body_headers
-    }
-
 
     def setUp(self):
         super(CavageTestCase, self).setUp()
@@ -40,6 +22,7 @@ class CavageTestCase(unittest.TestCase):
         self.test_host_url = "http://localhost"
 
     def init_app(self, app):
+        self.required_headers = HeadersMap
         if self.debug:
             self.app.logger.addHandler(logging.StreamHandler())
             self.app.logger.setLevel(logging.DEBUG)
@@ -70,7 +53,7 @@ class CavageTestCase(unittest.TestCase):
             return 'Hello, Someone!'
 
     def mk_signer(self, key_id, secret, http_method, algorithm="hmac-sha256"):
-        headers = self.required_headers.get(http_method.lower())
+        headers = getattr(self.required_headers, http_method.lower())
         signer = httpsig_cffi.sign.HeaderSigner(
             key_id=key_id, secret=secret,
             algorithm=algorithm, headers=headers)
@@ -79,7 +62,7 @@ class CavageTestCase(unittest.TestCase):
 
     def compute_checksum(self, body=""):
         # This coerces everything into json.
-        return {"x-content-sha256": base64.b64encode(
+        return {"digest": "SHA-256=%s" % base64.b64encode(
             hashlib.sha256(body).digest()
         ).decode('utf-8')}
 
@@ -88,7 +71,7 @@ class CavageTestCase(unittest.TestCase):
             'date': email.utils.formatdate(usegmt=True),
             "content-type": "application/json"
         }
-        if 'host' in self.required_headers.get(method.lower()):
+        if 'host' in getattr(self.required_headers, method):
             headers['host'] = six.moves.urllib.parse.urlparse(self.test_host_url).netloc
 
         if method.lower() in ["put", "post"]:
@@ -114,7 +97,7 @@ class CavageTestCase(unittest.TestCase):
     def test_protected_resource_should_not_be_accesible_without_a_signature(self):
         rv = self.test_client.get('/hello_world_private', data=json.dumps({}), content_type='application/json')
         self.assertEquals(rv.status_code, 401)
-        self.assertTrue(b'Access denied' in rv.data)
+        self.assertTrue(b'Access Denied' in rv.data)
 
     def test_protected_resource_should_be_accesible_with_a_signature_via_get(self):
         path = "/hello_world_private"

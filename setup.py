@@ -7,7 +7,7 @@ been signed using cavage-http-signature.
 
 Please see
 
- - https://tools.ietf.org/html/draft-cavage-http-signatures-03
+ - https://tools.ietf.org/html/draft-cavage-http-signatures-06
 
 This library has been tested using requests signed by
 
@@ -19,12 +19,12 @@ from setuptools import setup
 
 setup(
     name='Flask-Cavage',
-    version='0.3',
+    version='0.4',
     url='https://github.com/labeneator/flask_cavage',
     license='GPLv3',
     author='Laban Mwangi',
     author_email='lmwangi@gmail.com',
-    description='Verify cavage signed http requests',
+    description='Verify cavage-http-signatures requests made to Flask',
     long_description=__doc__,
     py_modules=['flask_cavage'],
     zip_safe=False,
