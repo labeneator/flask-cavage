@@ -4,7 +4,7 @@ import hashlib
 import binascii
 from functools import wraps
 from httpsig.verify import HeaderVerifier
-from flask import g, request, current_app, abort, jsonify, make_response
+from flask import g, request, current_app, jsonify
 
 # Draft doc: https://tools.ietf.org/html/draft-cavage-http-signatures-06
 
@@ -156,8 +156,9 @@ def require_apikey_authentication(func):
         if hasattr(g, 'cavage_verified') and not g.cavage_verified:
             # TODO: Abort with a response header as per draft section: 3.1.1.
             headers = " ".join(list(getattr(HeadersMap, request.method.lower())))
-            response = make_response(jsonify(message="Access Denied"), 401)
+            response = jsonify(message="Access Denied")
+            response.status_code = 401
             response.headers['WWW-Authenticate'] = 'Signature realm="Example",headers="%s"' % headers
-            abort(response)
+            return response
         return func(*args, **kwargs)
     return decorated_function
