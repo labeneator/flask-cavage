@@ -124,3 +124,7 @@ def main():
 if __name__ == "__main__":
     main()
  ```
+
+
+On success, flask cavage will set g.cavage_verified to true or false depending on the signature
+verification. It will also provide the access key (key_id) of the request via g.cavage_key_id

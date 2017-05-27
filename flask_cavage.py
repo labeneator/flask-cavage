@@ -76,7 +76,6 @@ class CavageSignature(object):
             current_app.logger.warn(
                 "Unable to extract keyId: '%s'" % key_id)
             return
-
         current_app.logger.debug(
             "Secrets lookup for access key: %s" % key_id)
         secret_key = self.secret_loader_callback(key_id)
@@ -84,6 +83,7 @@ class CavageSignature(object):
             current_app.logger.warn(
                 "keyId doesn't have a secret: '%s'" % key_id)
             return
+        g.cavage_key_id = key_id
         return secret_key
 
     def verify_headers(self, app, secret_key, http_method, required_headers):
