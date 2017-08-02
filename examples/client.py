@@ -1,6 +1,6 @@
 import requests
 import email.utils
-from cavage_signed_request_auth import CavageSignedRequestAuth
+from signed_request_auth import SignedRequestAuth
 
 
 def mk_headers():
@@ -11,7 +11,7 @@ def mk_headers():
 
 
 def mk_auth(key_id, secret):
-    return CavageSignedRequestAuth(key_id, secret)
+    return SignedRequestAuth(key_id, secret)
 
 
 def do_simple_get(auth):

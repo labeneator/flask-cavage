@@ -1,5 +1,5 @@
 import logging
-from flask import Flask
+from flask import Flask, g
 from flask_cavage import CavageSignature, require_apikey_authentication
 
 keys = {
@@ -17,11 +17,20 @@ def init_signature_verification(app):
             return keys.get(access_key)
 
 
+    @cavage_signature.context_loader
+    def load_context(access_key):
+        app.logger.debug("Fun fact! I would have looked up the user for access_key '%s'" % access_key)
+        app.logger.debug("Then whatever i return from this function will be accessible as g.cavage_context")
+        # return some nonsense
+        return dict(user_id="".join(reversed(access_key)))
+
 app = Flask(__name__)
 
 
 @app.route('/hello_world')
 def hello_world():
+    # Unverified requests have no context
+    print getattr(g, 'cavage_context', '<no-user-context>')
     # Cavage signatures not verified
     return 'Hello, World!'
 
@@ -29,7 +38,9 @@ def hello_world():
 @app.route('/hello_world_private', methods=['GET'])
 @require_apikey_authentication
 def hello_world_private():
-    # Valid cavage signatures ed
+    # If context loader is used, we will get a user context
+    print getattr(g, 'cavage_context', '<no-user-context>')
+    # Valid cavage signatures requests work
     return '<Whisper> Hello, world!'
 
 

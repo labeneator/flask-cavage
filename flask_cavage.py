@@ -6,7 +6,7 @@ from functools import wraps
 from httpsig.verify import HeaderVerifier
 from flask import g, request, current_app, jsonify
 
-# Draft doc: https://tools.ietf.org/html/draft-cavage-http-signatures-06
+# Draft doc: https://tools.ietf.org/html/draft-cavage-http-signatures-07
 
 # As per draft appendix C, section 2
 base_headers_set = frozenset(["(request-target)", "host", "date"])
@@ -28,8 +28,8 @@ class CavageSignature(object):
         "SHA-384": hashlib.sha384,
         "SHA-256": hashlib.sha256,
         "SHA-224": hashlib.sha224,
-        "SHA-1": hashlib.sha1,
-        "MD5": hashlib.md5,
+        "SHA-1":   hashlib.sha1,
+        "MD5":     hashlib.md5,
     }
 
 
@@ -44,6 +44,8 @@ class CavageSignature(object):
         self.headers_map = headers_map
         self.key_id_matcher = re.compile('.*keyId="(?P<key_id>\w+).*')
         self.secret_loader_callback = None
+        self.context_loader_callback = None
+        self.replay_checker_callback = None
         self.init_signature_handlers(app)
         return self
 
@@ -52,6 +54,14 @@ class CavageSignature(object):
             raise Exception(
                 "No secret loader installed."
                 " Add one using the secret_loader decorator")
+
+    def replay_check(self, headers=None):
+        if self.replay_checker_callback and callable(self.replay_checker_callback):
+            if not headers:
+                headers = request.headers
+            return self.replay_checker_callback(headers)
+        # No replay checking. Just continue
+        return True
 
     def validate_headers(self, required_headers):
         if "authorization" not in request.headers:
@@ -141,13 +151,51 @@ class CavageSignature(object):
                 current_app.logger.warn("Header verification failed")
                 return
             current_app.logger.debug("Header verification success")
+
+            current_app.logger.debug("Replay verification")
+            if not self.replay_check(request.headers):
+                current_app.logger.warn("Replay verification failed")
+                return
+            current_app.logger.warn("Replay verification success")
+
             g.cavage_verified = self.verify_payload(app, required_headers)
 
+            # Everything checks out. Load user context if possible
+            if g.cavage_verified and self.context_loader_callback:
+                if callable(self.context_loader_callback):
+                    g.cavage_context = self.context_loader_callback(g.cavage_key_id)
+
     def secret_loader(self, callback):
+        """
+        Decorate a method that receives a key id and returns a secret key
+        """
         if not callback or not callable(callback):
             raise Exception("Please pass in a callable that loads secret keys")
         self.secret_loader_callback = callback
         return callback
+
+    def context_loader(self, callback):
+        """
+        Decorate a method that receives a key id and returns an object or dict
+        that will be available in the request context as g.cavage_context
+        """
+        if not callback or not callable(callback):
+            raise Exception("Please pass in a callable that loads your context.")
+        self.context_loader_callback = callback
+        return callback
+
+    def replay_checker(self, callback):
+        """
+        Decorate a method that receives the request headers and returns a bool
+        indicating whether we should proceed with the request. This can be used
+        to protect against replay attacks. For example, this method could check
+        the request date header value is within a delta value of the server time.
+        """
+        if not callback or not callable(callback):
+            raise Exception("Please pass in a callable that protects against replays")
+        self.replay_checker_callback = callback
+        return callback
+
 
 
 def require_apikey_authentication(func):
@@ -158,7 +206,7 @@ def require_apikey_authentication(func):
             headers = " ".join(list(getattr(HeadersMap, request.method.lower())))
             response = jsonify(message="Access Denied")
             response.status_code = 401
-            response.headers['WWW-Authenticate'] = 'Signature realm="Example",headers="%s"' % headers
+            response.headers['WWW-Authenticate'] = 'Signature realm="HTTP-Signatures",headers="%s"' % headers  # noqa
             return response
         return func(*args, **kwargs)
     return decorated_function
